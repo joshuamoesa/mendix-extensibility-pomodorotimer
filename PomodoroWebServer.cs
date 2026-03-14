@@ -370,35 +370,43 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         }
 
         // ─── Stories ──────────────────────────────────────────────────────────
+        let localStories = [];
+
+        function renderStories() {
+          storyList.innerHTML = localStories.map(s => `<option value="${escHtml(s)}"></option>`).join('');
+          storyList2.innerHTML = localStories.length === 0
+            ? '<div class="list-empty">No stories added yet</div>'
+            : localStories.map(s => `
+                <div class="story-item">
+                  <span class="story-name" title="${escHtml(s)}">${escHtml(s)}</span>
+                  <button class="remove-btn" onclick="removeStory(${JSON.stringify(s)})" title="Remove">×</button>
+                </div>`).join('');
+        }
+
         async function loadStories() {
           try {
             const res = await fetch('./stories');
             if (!res.ok) return;
-            const stories = await res.json();
-            // Populate datalist
-            storyList.innerHTML = stories.map(s => `<option value="${escHtml(s)}"></option>`).join('');
-            // Render settings list
-            storyList2.innerHTML = stories.length === 0
-              ? '<div class="list-empty">No stories added yet</div>'
-              : stories.map(s => `
-                  <div class="story-item">
-                    <span class="story-name" title="${escHtml(s)}">${escHtml(s)}</span>
-                    <button class="remove-btn" onclick="removeStory(${JSON.stringify(s)})" title="Remove">×</button>
-                  </div>`).join('');
+            localStories = await res.json();
+            renderStories();
           } catch { /* ignore */ }
         }
 
         function removeStory(story) {
+          localStories = localStories.filter(s => s !== story);
+          renderStories();
           sendMessage('RemoveStory', { story });
-          setTimeout(loadStories, 100);
         }
 
         document.getElementById('addBtn').addEventListener('click', () => {
           const val = addInput.value.trim();
           if (!val) return;
+          if (!localStories.includes(val)) {
+            localStories.push(val);
+            renderStories();
+          }
           sendMessage('AddStory', { story: val });
           addInput.value = '';
-          setTimeout(loadStories, 100);
         });
 
         addInput.addEventListener('keydown', e => {
@@ -413,7 +421,6 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         });
 
         document.getElementById('backBtn').addEventListener('click', () => {
-          loadStories(); // refresh datalist before going back
           document.getElementById('settingsView').classList.remove('active');
           document.getElementById('mainView').classList.add('active');
         });
