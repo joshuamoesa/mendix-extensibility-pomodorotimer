@@ -1,12 +1,15 @@
 # Pomodoro Timer — Mendix Studio Pro Extension
 
-A dockable Pomodoro timer that lives inside Mendix Studio Pro. Track 25-minute focus sessions without leaving the IDE.
+A dockable Pomodoro timer that lives inside Mendix Studio Pro. Track focus sessions against your user stories without leaving the IDE.
 
 ## Features
 
-- 25-minute work sessions with 5-minute short breaks and a 15-minute long break after every 4 sessions
+- Configurable work / short break / long break durations (defaults: 25 / 5 / 15 min)
 - Circular countdown ring with Start / Pause / Reset controls
 - Session progress dots (4 Pomodoros before a long break)
+- **User story tracking** — type or select from a personal story list before each session
+- **Session history** — see every completed Pomodoro with task name and time
+- **Settings panel** — manage your user story list and customize durations
 - Studio Pro native popup notification when a session ends
 - Dark mode support
 
@@ -18,7 +21,6 @@ A dockable Pomodoro timer that lives inside Mendix Studio Pro. Track 25-minute f
 ## Build
 
 ```bash
-cd /Users/joshua.moesa/workdir/github/PomodoroTimer
 dotnet build MyCompany.MyProject.PomodoroTimer.csproj
 ```
 
@@ -40,6 +42,14 @@ open -a "Mendix Studio Pro 11.8.0 Beta" --args --enable-extension-development
 
 5. Go to **Extensions → Open Pomodoro Timer**
 
+## Usage
+
+1. Type a task or select a user story from the dropdown
+2. Click **Start** to begin a 25-minute focus session
+3. A Studio Pro notification appears when the session ends
+4. Completed sessions are logged in the **History** panel
+5. Click **⚙** to open Settings — manage user stories and adjust durations
+
 ## Project Structure
 
 ```
@@ -49,9 +59,13 @@ PomodoroTimer/
 ├── PomodoroMenuExtension.cs               # Adds menu item to Extensions menu
 ├── PomodoroPaneExtension.cs               # Registers the dockable pane
 ├── PomodoroPaneViewModel.cs               # WebView init + C#↔JS message bridge
+├── PomodoroHistoryStore.cs                # In-memory session log (MEF singleton)
+├── PomodoroStoryStore.cs                  # In-memory user story list (MEF singleton)
 └── PomodoroWebServer.cs                   # Serves the HTML/CSS/JS timer UI
 ```
 
 ## How it works
 
-The timer UI is a self-contained HTML page served by a built-in local web server (`PomodoroWebServer`). Studio Pro embeds a WebView that loads this page. The countdown runs in JavaScript. When a session ends, JavaScript calls `postMessage` which C# receives and uses to show a Studio Pro notification.
+The timer UI is a self-contained HTML page served by a built-in local web server (`PomodoroWebServer`). Studio Pro embeds a WebView that loads this page. The countdown runs in JavaScript. When a session ends, JavaScript calls `postMessage` which C# receives, stores the record in `PomodoroHistoryStore`, and shows a Studio Pro notification.
+
+User stories and history persist for the lifetime of the Studio Pro session. Both are cleared when Studio Pro is quit.

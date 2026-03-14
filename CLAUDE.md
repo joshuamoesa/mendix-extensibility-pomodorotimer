@@ -24,23 +24,57 @@ Post-build rsync copies output automatically to the Mendix app's extensions fold
 
 ```
 PomodoroMenuExtension   → adds "Open Pomodoro Timer" to Extensions menu
-PomodoroPaneExtension   → registers dockable pane, injects IMessageBoxService
+PomodoroPaneExtension   → registers dockable pane; injects IMessageBoxService,
+                          PomodoroHistoryStore, PomodoroStoryStore
 PomodoroPaneViewModel   → sets Title, loads WebView URL, handles JS postMessage
-PomodoroWebServer       → serves /pomodoro route with inline HTML/CSS/JS
+PomodoroHistoryStore    → MEF singleton; in-memory list of completed sessions
+PomodoroStoryStore      → MEF singleton; in-memory list of user stories
+PomodoroWebServer       → serves /pomodoro, /history, /stories routes
 ```
 
 ## Known API constraints (discovered via reflection on the DLL)
 
 - `DockablePaneExtension` does **not** have a `ViewMenuCaption` property in 11.8.0 — it was removed. Use `Title` on the view model instead.
-- `PomodoroWebServer` uses no constructor parameters, so `[method: ImportingConstructor]` must not be applied to it.
+- `PomodoroWebServer` now has constructor parameters so `[method: ImportingConstructor]` is required.
 - Pane title is set via `Title = "..."` inside `InitWebView()` on the view model.
 
 ## JS ↔ C# message bridge
 
 JavaScript sends messages using:
 ```js
-window.webkit.messageHandlers.studioPro.postMessage(...)  // macOS WebKit
-window.chrome.webview.postMessage(...)                     // Windows WebView2
+window.webkit.messageHandlers.studioPro.postMessage(payload)  // macOS WebKit
+window.chrome.webview.postMessage(payload)                     // Windows WebView2
 ```
 
-C# receives in `PomodoroPaneViewModel.OnMessageReceived`. Messages: `WorkComplete`, `BreakComplete`.
+All messages are JSON strings. C# parses with `System.Text.Json.JsonDocument`.
+
+### Message types (JS → C#)
+
+| type | fields | action |
+|------|--------|--------|
+| `WorkComplete` | `task` | adds record to `PomodoroHistoryStore`, shows notification |
+| `BreakComplete` | — | shows notification |
+| `AddStory` | `story` | adds to `PomodoroStoryStore` |
+| `RemoveStory` | `story` | removes from `PomodoroStoryStore` |
+
+## UI state management pattern
+
+**Do not use server fetches to update the UI after mutations.** C# message delivery is async and the fetch will race against the store update.
+
+Instead:
+- `localHistory` and `localStories` are JS arrays that are the source of truth for the current view
+- UI (`renderHistory()`, `renderStories()`) updates immediately from these local arrays
+- C# store is updated via `sendMessage` for persistence across pane close/reopen
+- Server fetch (`loadHistory()`, `loadStories()`) is only called on page load to restore state
+
+## Routes served by PomodoroWebServer
+
+| route | response |
+|-------|----------|
+| `/pomodoro` | full HTML/CSS/JS timer page |
+| `/history` | JSON array `[{number, task, time}]` |
+| `/stories` | JSON array of strings |
+
+## Timer durations
+
+Configurable in the Settings panel (⚙). Stored in the JS `DURATIONS` object (`const` with mutable properties). Applied immediately if the timer is not running; otherwise take effect next phase.

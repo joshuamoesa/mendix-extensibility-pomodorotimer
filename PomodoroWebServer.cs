@@ -218,6 +218,32 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
           cursor: pointer; min-width: unset; transition: filter 0.15s;
         }
         .add-btn:hover { filter: brightness(1.1); }
+
+        /* ── Duration settings ── */
+        .settings-section-title {
+          font-size: 11px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.08em; color: var(--subtext);
+        }
+        .duration-grid {
+          display: grid; grid-template-columns: 1fr auto;
+          gap: 6px; align-items: center;
+        }
+        .duration-label { font-size: 13px; }
+        .duration-input {
+          width: 72px; padding: 6px 8px; text-align: center;
+          border: 1px solid var(--input-border); border-radius: 6px;
+          background: var(--surface); color: var(--text);
+          font-size: 13px; font-variant-numeric: tabular-nums; outline: none;
+          transition: border-color 0.15s;
+        }
+        .duration-input:focus { border-color: var(--work-color); }
+        .duration-input.invalid { border-color: #e74c3c; }
+        .apply-btn {
+          align-self: flex-start; padding: 7px 16px; background: var(--btn-bg); color: var(--text);
+          border: none; border-radius: 6px; font-size: 13px; font-weight: 500;
+          cursor: pointer; min-width: unset; transition: background 0.15s;
+        }
+        .apply-btn:hover { background: var(--btn-hover); }
       </style>
     </head>
     <body>
@@ -281,8 +307,23 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         <div class="settings-view">
           <div class="settings-header">
             <button class="icon-btn" id="backBtn" title="Back">←</button>
-            <span class="settings-title">User Stories</span>
+            <span class="settings-title">Settings</span>
           </div>
+
+          <span class="settings-section-title">Durations</span>
+          <div class="duration-grid">
+            <span class="duration-label">Work</span>
+            <input class="duration-input" type="text" id="durationWork" placeholder="25:00" />
+            <span class="duration-label">Short break</span>
+            <input class="duration-input" type="text" id="durationShortBreak" placeholder="05:00" />
+            <span class="duration-label">Long break</span>
+            <input class="duration-input" type="text" id="durationLongBreak" placeholder="15:00" />
+          </div>
+          <button class="apply-btn" id="applyDurationsBtn">Apply</button>
+
+          <div class="divider"></div>
+
+          <span class="settings-section-title">User Stories</span>
           <div class="story-list" id="storyList2"></div>
           <div class="add-row">
             <input class="add-input" type="text" id="addInput" placeholder="Add user story…" />
@@ -293,7 +334,7 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
 
       <script>
         // ─── Constants ────────────────────────────────────────────────────────
-        const DURATIONS = { work: 25*60, shortBreak: 5*60, longBreak: 15*60 };
+        const DURATIONS = { work: 25*60, shortBreak: 5*60, longBreak: 15*60 }; // mutable properties
         const PHASE_LABELS = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
         const PHASE_COLORS = { work: 'var(--work-color)', shortBreak: 'var(--break-color)', longBreak: 'var(--long-break-color)' };
         const CIRCUMFERENCE = 2 * Math.PI * 78; // ≈ 490.09
@@ -352,20 +393,26 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         }
 
         // ─── History ──────────────────────────────────────────────────────────
+        let localHistory = [];
+
+        function renderHistory() {
+          historyBadge.textContent = localHistory.length;
+          historyList.innerHTML = localHistory.length === 0
+            ? '<div class="list-empty">No sessions yet</div>'
+            : localHistory.map(r => `
+                <div class="history-item">
+                  <span class="h-num">#${r.number}</span>
+                  <span class="h-task" title="${escHtml(r.task)}">${escHtml(r.task)}</span>
+                  <span class="h-time">${r.time}</span>
+                </div>`).join('');
+        }
+
         async function loadHistory() {
           try {
             const res = await fetch('./history');
             if (!res.ok) return;
-            const records = await res.json();
-            historyBadge.textContent = records.length;
-            historyList.innerHTML = records.length === 0
-              ? '<div class="list-empty">No sessions yet</div>'
-              : records.map(r => `
-                  <div class="history-item">
-                    <span class="h-num">#${r.number}</span>
-                    <span class="h-task" title="${escHtml(r.task)}">${escHtml(r.task)}</span>
-                    <span class="h-time">${r.time}</span>
-                  </div>`).join('');
+            localHistory = await res.json();
+            renderHistory();
           } catch { /* ignore */ }
         }
 
@@ -376,10 +423,14 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
           storyList.innerHTML = localStories.map(s => `<option value="${escHtml(s)}"></option>`).join('');
           storyList2.innerHTML = localStories.length === 0
             ? '<div class="list-empty">No stories added yet</div>'
-            : localStories.map(s => `
+            : localStories.map((s, i) => `
                 <div class="story-item">
                   <span class="story-name" title="${escHtml(s)}">${escHtml(s)}</span>
-                  <button class="remove-btn" onclick="removeStory(${JSON.stringify(s)})" title="Remove">×</button>
+                  <button class="remove-btn" onclick="removeStory(${i})" title="Remove">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                    </svg>
+                  </button>
                 </div>`).join('');
         }
 
@@ -392,8 +443,9 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
           } catch { /* ignore */ }
         }
 
-        function removeStory(story) {
-          localStories = localStories.filter(s => s !== story);
+        function removeStory(idx) {
+          const story = localStories[idx];
+          localStories.splice(idx, 1);
           renderStories();
           sendMessage('RemoveStory', { story });
         }
@@ -414,8 +466,44 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         });
 
         // ─── View switching ───────────────────────────────────────────────────
+        // ─── Durations ────────────────────────────────────────────────────────
+        function parseDuration(str) {
+          const m = str.trim().match(/^(\d{1,2}):(\d{2})$/);
+          if (!m) return null;
+          const secs = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+          return secs > 0 ? secs : null;
+        }
+
+        function renderDurations() {
+          document.getElementById('durationWork').value = fmtSecs(DURATIONS.work);
+          document.getElementById('durationShortBreak').value = fmtSecs(DURATIONS.shortBreak);
+          document.getElementById('durationLongBreak').value = fmtSecs(DURATIONS.longBreak);
+          ['durationWork','durationShortBreak','durationLongBreak'].forEach(id =>
+            document.getElementById(id).classList.remove('invalid'));
+        }
+
+        document.getElementById('applyDurationsBtn').addEventListener('click', () => {
+          const ids   = ['durationWork', 'durationShortBreak', 'durationLongBreak'];
+          const keys  = ['work', 'shortBreak', 'longBreak'];
+          const vals  = ids.map(id => parseDuration(document.getElementById(id).value));
+          let valid   = true;
+          ids.forEach((id, i) => {
+            const ok = vals[i] !== null;
+            document.getElementById(id).classList.toggle('invalid', !ok);
+            if (!ok) valid = false;
+          });
+          if (!valid) return;
+          keys.forEach((k, i) => DURATIONS[k] = vals[i]);
+          if (!running) {
+            totalDuration = DURATIONS[phase];
+            remaining     = totalDuration;
+            updateUI();
+          }
+        });
+
         document.getElementById('gearBtn').addEventListener('click', () => {
-          loadStories();
+          renderDurations();
+          renderStories();
           document.getElementById('mainView').classList.remove('active');
           document.getElementById('settingsView').classList.add('active');
         });
@@ -438,8 +526,11 @@ public class PomodoroWebServer(PomodoroHistoryStore historyStore, PomodoroStoryS
         function onPhaseComplete() {
           if (phase === 'work') {
             completedWork++;
+            const task = taskInput.value.trim() || 'Untitled';
+            const now  = new Date();
+            localHistory.push({ number: localHistory.length + 1, task, time: pad(now.getHours()) + ':' + pad(now.getMinutes()) });
+            renderHistory();
             sendMessage('WorkComplete');
-            setTimeout(loadHistory, 200);
             phase = completedWork >= 4 ? 'longBreak' : 'shortBreak';
             remaining = totalDuration = DURATIONS[phase];
           } else if (phase === 'shortBreak') {
