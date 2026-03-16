@@ -9,7 +9,7 @@ A Mendix Studio Pro extension written in C# (.NET 10). It adds a dockable Pomodo
 - **Target**: Studio Pro 11.8 (macOS), `Mendix.StudioPro.ExtensionsAPI` v11.8.0
 - **Framework**: net10.0
 - **Pattern**: MEF (Managed Extensibility Framework) — `[Export]` / `[ImportingConstructor]` attributes wire everything together; Studio Pro does the instantiation
-- **Deploy target**: `/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/`
+- **Deploy target**: `/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/` (post-build rsync only runs if this path exists — safe for other contributors)
 - **Launch flag required**: `--enable-extension-development`
 
 ## Build
@@ -18,7 +18,7 @@ A Mendix Studio Pro extension written in C# (.NET 10). It adds a dockable Pomodo
 dotnet build MyCompany.MyProject.PomodoroTimer.csproj
 ```
 
-Post-build rsync copies output automatically to the Mendix app's extensions folder.
+Post-build rsync copies output automatically to the Mendix app's extensions folder, but only if the target path exists (conditional on `Exists(...)` in the `.csproj`). Safe to build on any machine.
 
 ## Architecture
 
@@ -78,3 +78,7 @@ Instead:
 ## Timer durations
 
 Configurable in the Settings panel (⚙). Stored in the JS `DURATIONS` object (`const` with mutable properties). Applied immediately if the timer is not running; otherwise take effect next phase.
+
+## Distribution
+
+`.mxmodule` files are gitignored. Releases are distributed by attaching the `.mxmodule` to a GitHub Release tag. The Mendix Marketplace syncs from the GitHub Release when the repo is linked as the component source.

@@ -1,39 +1,68 @@
-# Pomodoro Timer — Mendix Studio Pro Extension
+# PomodoroTimer
 
-A dockable Pomodoro timer that lives inside Mendix Studio Pro. Track focus sessions against your user stories without leaving the IDE.
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
+[![.NET](https://img.shields.io/badge/.NET-10-purple?style=flat-square)](https://dotnet.microsoft.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-## Features
+A dockable Pomodoro timer extension for Mendix Studio Pro. Track focus sessions against your user stories without leaving the IDE.
+
+## Table of Contents
+
+- [Background](#background)
+- [Install](#install)
+- [Usage](#usage)
+- [Publishing](#publishing)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Background
+
+Mendix Studio Pro supports custom extensions via the [Extensibility API](https://docs.mendix.com/apidocs-mxsdk/apidocs/studio-pro-11/extensibility-api/). This extension adds a dockable Pomodoro timer pane to the IDE so developers can manage focus sessions and user story tracking without switching context.
+
+**Features:**
 
 - Configurable work / short break / long break durations (defaults: 25 / 5 / 15 min)
 - Circular countdown ring with Start / Pause / Reset controls
 - Session progress dots (4 Pomodoros before a long break)
-- **User story tracking** — type or select from a personal story list before each session
-- **Session history** — see every completed Pomodoro with task name and time
-- **Settings panel** — manage your user story list and customize durations
+- User story tracking — type or select from a personal story list before each session
+- Session history — see every completed Pomodoro with task name and time
+- Settings panel — manage your user story list and customize durations
 - Studio Pro native popup notification when a session ends
 - Dark mode support
 
-## Requirements
+**How it works:**
+
+The timer UI is a self-contained HTML page served by a built-in local web server (`PomodoroWebServer`). Studio Pro embeds a WebView that loads this page. The countdown runs in JavaScript. When a session ends, JavaScript calls `postMessage` which C# receives, stores the record in `PomodoroHistoryStore`, and shows a Studio Pro notification.
+
+User stories and history persist for the lifetime of the Studio Pro session. Both are cleared when Studio Pro is quit.
+
+## Install
+
+**Prerequisites:**
 
 - Mendix Studio Pro 11.8+ (macOS)
-- .NET 10 SDK (`brew install dotnet`)
-
-## Build
+- .NET 10 SDK
 
 ```bash
+brew install dotnet
+```
+
+**Build:**
+
+```bash
+git clone https://github.com/joshuamoesa/PomodoroTimer.git
+cd PomodoroTimer
 dotnet build MyCompany.MyProject.PomodoroTimer.csproj
 ```
 
-The post-build step automatically copies the output to:
-```
-/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/
-```
+The post-build step automatically copies the compiled output to your Mendix app's `extensions/PomodoroTimer/` folder if it exists on your machine. Contributors without that path will have the step silently skipped.
 
-## Install in Studio Pro
+**Load in Studio Pro:**
 
 1. Build the project (see above)
-2. Open the target app in Studio Pro
-3. Press `F4` (Synchronize App Directory)
+2. Open the target Mendix app in Studio Pro
+3. Press `F4` to synchronize the app directory
 4. Restart Studio Pro with the extension development flag:
 
 ```bash
@@ -50,22 +79,32 @@ open -a "Mendix Studio Pro 11.8.0 Beta" --args --enable-extension-development
 4. Completed sessions are logged in the **History** panel
 5. Click **⚙** to open Settings — manage user stories and adjust durations
 
-## Project Structure
+## Publishing
 
-```
-PomodoroTimer/
-├── manifest.json                          # Extension entry point
-├── MyCompany.MyProject.PomodoroTimer.csproj
-├── PomodoroMenuExtension.cs               # Adds menu item to Extensions menu
-├── PomodoroPaneExtension.cs               # Registers the dockable pane
-├── PomodoroPaneViewModel.cs               # WebView init + C#↔JS message bridge
-├── PomodoroHistoryStore.cs                # In-memory session log (MEF singleton)
-├── PomodoroStoryStore.cs                  # In-memory user story list (MEF singleton)
-└── PomodoroWebServer.cs                   # Serves the HTML/CSS/JS timer UI
+The packaged extension is distributed as a `.mxmodule` file attached to a GitHub Release. The Mendix Marketplace can sync directly from a GitHub Release tag.
+
+1. Tag the release commit and push:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-## How it works
+2. On GitHub, create a Release from the tag and attach the `.mxmodule` file
+3. On [Mendix Marketplace](https://marketplace.mendix.com), click **Add Content** and link the GitHub Release as the component source
 
-The timer UI is a self-contained HTML page served by a built-in local web server (`PomodoroWebServer`). Studio Pro embeds a WebView that loads this page. The countdown runs in JavaScript. When a session ends, JavaScript calls `postMessage` which C# receives, stores the record in `PomodoroHistoryStore`, and shows a Studio Pro notification.
+`.mxmodule` files are excluded from git via `.gitignore` — always distribute via GitHub Releases, not by committing to the repo.
 
-User stories and history persist for the lifetime of the Studio Pro session. Both are cleared when Studio Pro is quit.
+## Maintainers
+
+[@joshuamoesa](https://github.com/joshuamoesa)
+
+## Contributing
+
+Issues and pull requests are welcome. For significant changes, open an issue first to discuss the approach.
+
+All SDK objects used in the extension are loaded via MEF. Any contribution touching the C# extension classes must maintain the `[Export]` / `[ImportingConstructor]` pattern or Studio Pro will silently fail to load the extension.
+
+## License
+
+[MIT](LICENSE) © Joshua Moesa

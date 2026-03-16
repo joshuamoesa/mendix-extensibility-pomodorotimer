@@ -13,6 +13,7 @@
     </None>
   </ItemGroup>
   <Target Name="CopyExtension" AfterTargets="Build">
-    <Exec Command="rsync -a --delete '$(TargetDir)' '/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/'" />
+    <Exec Command="rsync -a --delete '$(TargetDir)' '/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/'"
+          Condition="Exists('/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/')" />
   </Target>
 </Project>
