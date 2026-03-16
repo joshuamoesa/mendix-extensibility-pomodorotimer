@@ -6,7 +6,7 @@ A Mendix Studio Pro extension written in C# (.NET 10). It adds a dockable Pomodo
 
 ## Key facts
 
-- **Target**: Studio Pro 11.8 (macOS), `Mendix.StudioPro.ExtensionsAPI` v11.8.0
+- **Target**: Studio Pro 11.8 (macOS + Windows), `Mendix.StudioPro.ExtensionsAPI` v11.8.0
 - **Framework**: net10.0
 - **Pattern**: MEF (Managed Extensibility Framework) — `[Export]` / `[ImportingConstructor]` attributes wire everything together; Studio Pro does the instantiation
 - **Deploy target**: `/Users/joshua.moesa/workdir/Mendix/MCPDemo-main_2/extensions/PomodoroTimer/` (post-build rsync only runs if this path exists — safe for other contributors)

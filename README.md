@@ -41,12 +41,8 @@ User stories and history persist for the lifetime of the Studio Pro session. Bot
 
 **Prerequisites:**
 
-- Mendix Studio Pro 11.8+ (macOS)
+- Mendix Studio Pro 11.8+
 - .NET 10 SDK
-
-```bash
-brew install dotnet
-```
 
 **Build:**
 
@@ -65,8 +61,14 @@ The post-build step automatically copies the compiled output to your Mendix app'
 3. Press `F4` to synchronize the app directory
 4. Restart Studio Pro with the extension development flag:
 
+**macOS:**
 ```bash
 open -a "Mendix Studio Pro 11.8.0 Beta" --args --enable-extension-development
+```
+
+**Windows:**
+```
+"C:\Program Files\Mendix\11.8.0\modeler\studiopro.exe" --enable-extension-development
 ```
 
 5. Go to **Extensions → Open Pomodoro Timer**
